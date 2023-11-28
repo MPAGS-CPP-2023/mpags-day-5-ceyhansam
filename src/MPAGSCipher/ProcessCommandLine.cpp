@@ -11,7 +11,7 @@ bool processCommandLine(const std::vector<std::string>& cmdLineArgs,
     bool processStatus{true};
 
     // Default to expecting information about one cipher
-    const std::size_t nExpectedCiphers{1};
+    std::size_t nExpectedCiphers{1};
     settings.cipherType.reserve(nExpectedCiphers);
     settings.cipherKey.reserve(nExpectedCiphers);
 
@@ -27,6 +27,22 @@ bool processCommandLine(const std::vector<std::string>& cmdLineArgs,
             // Set the indicator and terminate the loop
             settings.versionRequested = true;
             break;
+        } else if (cmdLineArgs[i] == "--multi-cipher"){
+            // Handle taking multiple ciphers
+            // Next element will be the number of ciphers
+            if (i == nCmdLineArgs - 1) {
+                std::cerr << "[error] -multi-cipher requires a positive integer argument"
+                          << std::endl;
+                processStatus = false;
+                break;
+            } else {
+                nExpectedCiphers = std::stoul(cmdLineArgs[i + 1]);
+                std::cout << nExpectedCiphers << std::endl;
+                settings.cipherType.reserve(nExpectedCiphers);
+                settings.cipherKey.reserve(nExpectedCiphers);
+                ++i;
+            }
+
         } else if (cmdLineArgs[i] == "-i") {
             // Handle input file option
             // Next element is filename unless "-i" is the last argument
@@ -85,9 +101,17 @@ bool processCommandLine(const std::vector<std::string>& cmdLineArgs,
             } else {
                 // Got the cipher name, so assign the value and advance past it
                 if (cmdLineArgs[i + 1] == "caesar") {
+                    std::cout << "Added Caesar" << std::endl;
                     settings.cipherType.push_back(CipherType::Caesar);
+                    std::cout << "nCiphers = " << settings.cipherType.size() << std::endl;
                 } else if (cmdLineArgs[i + 1] == "playfair") {
+                    std::cout << "Added Playfair" << std::endl;
                     settings.cipherType.push_back(CipherType::Playfair);
+                    std::cout << "nCiphers = " << settings.cipherType.size() << std::endl;
+                } else if (cmdLineArgs[i + 1] == "vigenere") {
+                    std::cout << "Added Vigenere" << std::endl;
+                    settings.cipherType.push_back(CipherType::Vigenere);
+                    std::cout << "nCiphers = " << settings.cipherType.size() << std::endl;
                 } else {
                     std::cerr << "[error] unknown cipher '"
                               << cmdLineArgs[i + 1] << "'\n";

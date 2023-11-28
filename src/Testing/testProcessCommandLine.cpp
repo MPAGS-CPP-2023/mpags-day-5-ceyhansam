@@ -141,3 +141,17 @@ TEST_CASE("Cipher type declared with Playfair cipher")
     REQUIRE(settings.cipherType.size() == 1);
     REQUIRE(settings.cipherType[0] == CipherType::Playfair);
 }
+
+TEST_CASE("Multi ciphers delcared")
+{
+    ProgramSettings settings{false, false, "", "", {}, {}, CipherMode::Encrypt};
+    const std::vector<std::string> cmdLine{"mpags-cipher", "--multi-cipher", "3", "-c", "caesar", "playfair", "vigenere"};
+    const bool res{processCommandLine(cmdLine, settings)};
+
+    REQUIRE(res);
+    REQUIRE(settings.cipherType.size() == 3);
+    REQUIRE(settings.cipherType[0] == CipherType::Caesar);
+    REQUIRE(settings.cipherType[1] == CipherType::Playfair);
+    REQUIRE(settings.cipherType[2] == CipherType::Vigenere);
+
+}

@@ -4,12 +4,18 @@
 #include "PlayfairCipher.hpp"
 #include "ProcessCommandLine.hpp"
 #include "TransformChar.hpp"
+#include "VigenereCipher.hpp"
+#include "CipherFactory.hpp"
 
 #include <cctype>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
+#include <algorithm>
+
+//TODO: ADD TO THIS TO TAKE MULTIPLE CIPHERS, MOST OF THE CODE IS PRESENT BUT STILL NEED TO ADD THE OPTIONS
+//EXAMPLE CMD LINE: ./mpags-cipher --multi-cipher 3 -c caesar -k 10 -c playfair -k hello ...
 
 int main(int argc, char* argv[])
 {
@@ -35,19 +41,20 @@ int main(int argc, char* argv[])
             << "Usage: mpags-cipher [-h/--help] [--version] [-i <file>] [-o <file>] [-c <cipher>] [-k <key>] [--encrypt/--decrypt]\n\n"
             << "Encrypts/Decrypts input alphanumeric text using classical ciphers\n\n"
             << "Available options:\n\n"
-            << "  -h|--help        Print this help message and exit\n\n"
-            << "  --version        Print version information\n\n"
-            << "  -i FILE          Read text to be processed from FILE\n"
-            << "                   Stdin will be used if not supplied\n\n"
-            << "  -o FILE          Write processed text to FILE\n"
-            << "                   Stdout will be used if not supplied\n\n"
-            << "                   Stdout will be used if not supplied\n\n"
-            << "  -c CIPHER        Specify the cipher to be used to perform the encryption/decryption\n"
-            << "                   CIPHER can be caesar or playfair - caesar is the default\n\n"
-            << "  -k KEY           Specify the cipher KEY\n"
-            << "                   A null key, i.e. no encryption, is used if not supplied\n\n"
-            << "  --encrypt        Will use the cipher to encrypt the input text (default behaviour)\n\n"
-            << "  --decrypt        Will use the cipher to decrypt the input text\n\n"
+            << "  -h|--help         Print this help message and exit\n\n"
+            << "  --version         Print version information\n\n"
+            << "  -i FILE           Read text to be processed from FILE\n"
+            << "                    Stdin will be used if not supplied\n\n"
+            << "  -o FILE           Write processed text to FILE\n"
+            << "                    Stdout will be used if not supplied\n\n"
+            << "                    Stdout will be used if not supplied\n\n"
+            << "  --multi-cipher N  Perform encryption/decryption using N ciphers\n\n"
+            << "  -c CIPHER         Specify the cipher to be used to perform the encryption/decryption\n"
+            << "                    CIPHER can be caesar, playfair or vigenere - caesar is the default\n\n"
+            << "  -k KEY            Specify the cipher KEY\n"
+            << "                    A null key, i.e. no encryption, is used if not supplied\n\n"
+            << "  --encrypt         Will use the cipher to encrypt the input text (default behaviour)\n\n"
+            << "  --decrypt         Will use the cipher to decrypt the input text\n\n"
             << std::endl;
         // Help requires no further action, so return from main
         // with 0 used to indicate success
@@ -91,18 +98,36 @@ int main(int argc, char* argv[])
 
     std::string outputText;
 
-    switch (settings.cipherType[0]) {
-        case CipherType::Caesar: {
-            // Run the Caesar cipher (using the specified key and encrypt/decrypt flag) on the input text
-            CaesarCipher cipher{settings.cipherKey[0]};
-            outputText = cipher.applyCipher(inputText, settings.cipherMode);
-            break;
+
+    std::vector<std::unique_ptr<Cipher>> cipherVec{};
+    cipherVec.reserve(settings.cipherType.size());
+
+    for (size_t iCipher = 0; iCipher < settings.cipherType.size(); iCipher++) {
+        //std::cout << "iCipher = " << iCipher << std::endl;
+        auto cipher = CipherFactory::makeCipher(settings.cipherType[iCipher], settings.cipherKey[iCipher]);
+        if (!cipher) {
+            std::cerr << "[error] problem constructing cipher" << std::endl;
+            return 1;
         }
-        case CipherType::Playfair: {
-            PlayfairCipher cipher{settings.cipherKey[0]};
-            outputText = cipher.applyCipher(inputText, settings.cipherMode);
+        cipherVec.push_back(std::move(cipher));
+    }
+
+    switch (settings.cipherMode)
+    {
+        case(CipherMode::Encrypt):
+            for (auto&& cipher : cipherVec) {
+                outputText =  cipher->applyCipher(inputText, settings.cipherMode);
+                inputText = outputText;
+            }
             break;
-        }
+        
+        case(CipherMode::Decrypt):
+            std::reverse(cipherVec.begin(), cipherVec.end());
+            for (auto&& revCipher : cipherVec) {
+                outputText = revCipher->applyCipher(inputText, settings.cipherMode);
+                inputText = outputText;
+            }
+            break;
     }
 
     // Output the encrypted/decrypted text to stdout/file
